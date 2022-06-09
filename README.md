@@ -10,3 +10,5 @@ to run
 ```
 node index.js
 ```
+
+chromium issue: https://bugs.chromium.org/p/chromium/issues/detail?id=1334778
