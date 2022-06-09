@@ -4,7 +4,7 @@ To run it (you need to install express).
 ```
 npm i
 ```
-Running the app will first generate a random 5GiB large file to `public/random.bin` and then open up in a random open port that you can open and test with different browsers
+Running the app will first generate a random 5GiB large file to `public/random.bin` and then run a localhost server at a random port, that you can open and test with different browsers
 
 to run
 ```
