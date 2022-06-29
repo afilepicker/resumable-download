@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import express from 'express'
 import { createRandomStream } from './random-stream.js'
 
-const bytes = Number(1024n * 1024n * 1024n * 5n)
+const bytes = Number(1024n * 1024n * 1024n * 2n)
 const app = express()
 
 console.log(`hold on one sec creating a random file of ${bytes.toLocaleString()} bytes...`)

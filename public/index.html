@@ -2,9 +2,116 @@
   <head> </head>
   <body>
     dum dum
+    <progress id="a123"></progress>
+
     <script type="module">
-      const res = await fetch('/random.bin')
-      console.log(res)
+      const worker = new Worker('/resumable-downloader.js', { type: 'module' })
+      const url = '/random.bin'
+
+      worker.postMessage({
+        action: 'download',
+        id: 'a123',
+        url: '/random.bin',
+
+        // fetch requestInit options
+        method: 'GET',
+        headers: {},
+        credentials: 'include',
+      })
+
+      /**
+       * This is the most common way to save files from a webpage using blob url
+       * the conn of this is not knowing when it have been written to the disk
+       * and safely removing the old file from the sandboxed storage
+       */
+      function saveUsingBlob(fileHandle) {
+        fileHandle.getFile().then(file => {
+          // create a download link
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(file)
+          a.innerText = 'save "random.bin"'
+          a.download = 'random.bin'
+          document.body.append(a)
+          a.onclick = () => {
+            setTimeout(() => {
+              URL.revokeObjectURL(a.href)
+              fileHandle.remove()
+            }, 60_000)
+          }
+          // an automatic way would just be to trigger the click event to
+          // automatically download the file
+          // a.click()
+        })
+      }
+
+      /**
+       * Using this method will instead move the file to the user's folder
+       * instead of copying the hole data over to the user's folder.
+       * it will also clear up the file from our own sandboxed storage.
+       * but doing this will prompt the user of annoying permissions dialogs.
+       */
+      async function saveUsingMove (fileHandle) {
+        const btn = document.createElement('button')
+        btn.innerText = 'Download random.bin (using move)'
+        btn.onclick = async () => {
+          // NOTE: You should be worrying about name already existing
+          const dir = await showDirectoryPicker({ mode: 'readwrite'})
+          const newName = 'random.bin'
+          fileHandle.move(dir, newName)
+        }
+        document.body.append(btn)
+      }
+
+      /**
+       * This method will copy it to the user's folder
+       * and then delete our own sandboxed storage file when the file
+       * have been written to the destination, so we don't have to worry
+       * about permissions.
+       */
+      function saveUsingPicker(fileHandle) {
+        const btn = document.createElement('button')
+        btn.innerText = 'Download random.bin (using file picker)'
+        btn.onclick = async () => {
+          const dest = await showSaveFilePicker({
+            suggestedName: 'random.zip'
+          })
+          const file = await fileHandle.getFile()
+          const writable = await dest.createWritable()
+          await writable.write(file)
+          await writable.close()
+          await fileHandle.remove()
+        }
+        document.body.append(btn)
+      }
+
+      worker.onmessage = ({ data }) => {
+        const { type, ...args } = data
+        const { id, size, downloaded } = args
+        const prog = document.getElementById(id)
+
+        switch (type) {
+          case 'progress':
+            prog.max = size
+            prog.value = downloaded
+            break
+          case 'done':
+            prog.max = prog.value = 1
+            // here are 3 way of saving the file
+            saveUsingBlob(args.fileHandle)
+            // it could be possible ask for this handles prematurely
+            // and write to this handles at a later stage
+            saveUsingPicker(args.fileHandle)
+            saveUsingMove(args.fileHandle)
+
+            const btn = document.createElement('button')
+            btn.innerText = 'delete file'
+            btn.onclick = async () => {
+              await args.fileHandle.remove().then(() => alert('done'))
+            }
+            document.body.append(btn)
+            break
+        }
+      }
     </script>
   </body>
 </html>
